@@ -13,7 +13,12 @@ const GITHUB_USERNAME = "AustinMaddox";
 const REPOS = ["RicochetSolutions/v4-cdk-app"];
 
 // ⏰ Time window
-const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+const today = new Date();
+today.setHours(0, 0, 0, 0); // Set to beginning of today (00:00:00)
+const since = today.toISOString();
+const until = new Date(today);
+until.setHours(23, 59, 59, 999); // Set to end of today (23:59:59.999)
+const untilStr = until.toISOString();
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
@@ -28,7 +33,7 @@ const headers = {
 };
 
 const getCommits = async (repo) => {
-  const url = `https://api.github.com/repos/${repo}/commits?since=${since}&per_page=100`;
+  const url = `https://api.github.com/repos/${repo}/commits?since=${since}&until=${untilStr}&per_page=100`;
   const res = await axios.get(url, { headers });
 
   return res.data
@@ -49,7 +54,8 @@ const getPullRequests = async (repo) => {
     .filter(
       (pr) =>
         pr.user?.login === GITHUB_USERNAME &&
-        new Date(pr.created_at) >= new Date(since),
+        new Date(pr.created_at) >= new Date(since) &&
+        new Date(pr.created_at) <= new Date(untilStr),
     )
     .map((pr) => ({
       repo,
@@ -74,7 +80,8 @@ const getPRReviews = async (repo) => {
         .filter(
           (review) =>
             review.user?.login === GITHUB_USERNAME &&
-            new Date(review.submitted_at) >= new Date(since),
+            new Date(review.submitted_at) >= new Date(since) &&
+            new Date(review.submitted_at) <= new Date(untilStr),
         )
         .forEach((review) => {
           reviews.push({
@@ -93,7 +100,7 @@ const getPRReviews = async (repo) => {
 };
 
 const summarize = (items) => {
-  if (items.length === 0) return "No GitHub activity in the last 24 hours.";
+  if (items.length === 0) return "No GitHub activity today.";
 
   return items.map((item) => `• ${item.message}`).join("\n");
 };
@@ -116,6 +123,6 @@ const summarize = (items) => {
   }
 
   const summary = summarize(all);
-  console.log("\n📝 GitHub Work Summary (last 24h):\n");
+  console.log("\n📝 GitHub Work Summary (Today):\n");
   console.log(summary);
 })();
