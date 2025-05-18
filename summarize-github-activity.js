@@ -65,39 +65,31 @@ const isTargetDate = (dateString) => {
 };
 
 const getCommits = async (repo) => {
-  const [owner, name] = repo.split("/");
-  console.log(`Fetching commits for ${repo}...`);
+  const [owner, repoName] = repo.split("/");
+  console.log(`Fetching commits authored by ${username} in ${repoName}...`);
+
+  const { data: commits } = await octokit.rest.repos.listCommits({
+    author: username,
+    owner,
+    repo: repoName,
+    since: `${targetDateStr}T00:00:00Z`,
+    until: `${targetDateStr}T23:59:59Z`,
+  });
+  // console.log("Commits:", commits);
 
   try {
-    // Get events for the authenticated user (you)
-    const { data: events } =
-      await octokit.activity.listEventsForAuthenticatedUser({
-        username,
-        per_page: 100,
-      });
+    const arrayOfCommitMessages = [];
 
-    const commits = [];
-
-    for (const event of events) {
-      // Only include events created by you (compare usernames)
-      if (
-        event.repo.name !== repo ||
-        event.type !== "PushEvent" ||
-        event.actor.login !== username
-      ) {
+    for (const commit of commits) {
+      if (commit.committer.login !== username) {
         continue;
       }
-
-      if (isTargetDate(event.created_at)) {
-        for (const commit of event.payload.commits) {
-          commits.push(`Commit: ${commit.message}`);
-        }
-      }
+      arrayOfCommitMessages.push(`Commit: ${commit.commit.message}`);
     }
 
-    return commits;
+    return arrayOfCommitMessages;
   } catch (error) {
-    console.error(`Error fetching commits for ${repo}:`, error.message);
+    console.error(`Error fetching commits for ${repoName}:`, error.message);
     return [];
   }
 };
@@ -183,6 +175,7 @@ ${activity.map((a) => `- ${a}`).join("\n")}
 
   const activity = await collectActivity();
   console.log(`\nFound ${activity.length} activity items`);
+  console.log("Activity items:\n", activity);
 
   const summary = await summarizeWithOpenAI(activity);
   console.log("\n📝 GitHub Summary:\n");
